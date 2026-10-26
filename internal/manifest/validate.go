@@ -82,6 +82,9 @@ func (m *Manifest) Validate() []Problem {
 		if q.Type == "choice" && len(q.Choices) == 0 {
 			add(f+".choices", "type: choice needs choices")
 		}
+		if q.Warden && q.Type != "port" {
+			add(f+".warden", "only for type: port")
+		}
 		if q.Type != "choice" && len(q.Choices) > 0 {
 			add(f+".choices", "only for type: choice")
 		}

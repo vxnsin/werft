@@ -3,7 +3,10 @@ package app
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -340,5 +343,77 @@ func TestParseSchedule(t *testing.T) {
 		if _, err := ParseSchedule(bad); err == nil {
 			t.Errorf("%q should fail", bad)
 		}
+	}
+}
+
+// With a warden on the machine the port question is not asked: werft takes
+// the port from warden, tells the app about it and gives it back on uninstall.
+func TestWardenPort(t *testing.T) {
+	for _, tool := range []string{"git", "sh"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(tool + " is missing")
+		}
+	}
+	held := map[string]int{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": "test"})
+	})
+	mux.HandleFunc("POST /v1/services", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name          string `json:"name"`
+			PreferredPort int    `json:"preferred_port"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		if _, ok := held[req.Name]; !ok {
+			held[req.Name] = req.PreferredPort + 1 // warden had other plans
+		}
+		json.NewEncoder(w).Encode(map[string]any{"name": req.Name, "port": held[req.Name]})
+	})
+	mux.HandleFunc("DELETE /v1/services/{name}", func(w http.ResponseWriter, r *http.Request) {
+		delete(held, r.PathValue("name"))
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	t.Setenv("WARDEN_URL", srv.URL)
+	t.Setenv("WARDEN", "")
+
+	base := t.TempDir()
+	etc := slashAbs(filepath.Join(base, "etc"))
+	src := filepath.Join(base, "src")
+	git := gitRepo(t, src)
+	write(t, src, "data/.keep", "")
+	write(t, src, ".werft/greeting.tmpl", "{{ .port }}")
+	port := "  - id: port\n    prompt: Port\n    type: port\n    default: 3100\n    warden: true\n"
+	write(t, src, "werft.yml", strings.ReplaceAll(yml(port, ""), "ETC", etc))
+	git("add", "-A")
+	git("commit", "-q", "-m", "v1")
+	git("tag", "v1.0.0")
+
+	w, out := testWerft(base)
+	w.Yes = true
+	err := w.Install(InstallOptions{Source: src, Answers: map[string]string{"greeting": "hi", "pw": "s"}})
+	if err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	if held["demo"] != 3101 {
+		t.Fatalf("warden should hold demo: %v", held)
+	}
+	expectFile(t, filepath.Join(base, "etc", "greeting.txt"), "3101")
+	env, _ := os.ReadFile(filepath.Join(base, "etc", "demo.env"))
+	for _, want := range []string{"PORT=3101\n", "WARDEN_SERVICE=demo\n", "WARDEN_PORT=3101\n"} {
+		if !strings.Contains(string(env), want) {
+			t.Errorf(".env lacks %q:\n%s", want, env)
+		}
+	}
+	if a := load(t, w); len(a.Warden) != 1 || a.Warden[0] != "demo" {
+		t.Errorf("state should remember the warden name: %+v", a.Warden)
+	}
+	if err := w.Uninstall("demo", false); err != nil {
+		t.Fatal(err)
+	}
+	if len(held) != 0 {
+		t.Errorf("uninstall should release the port: %v", held)
 	}
 }

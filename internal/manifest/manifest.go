@@ -55,6 +55,7 @@ type Question struct {
 	Validate string   `yaml:"validate"`
 	Secret   bool     `yaml:"secret"`
 	Optional bool     `yaml:"optional"`
+	Warden   bool     `yaml:"warden"`
 	When     string   `yaml:"when"`
 	Env      string   `yaml:"env"`
 	Generate string   `yaml:"generate"`

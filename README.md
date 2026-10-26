@@ -101,6 +101,8 @@ health:
   http: http://localhost:{{ .port }}/health
 ```
 
+If [warden](https://github.com/vxnsin/warden) runs on the server, a port question with `warden: true` is not asked at all: werft takes the port warden hands out and holds it under the app name.
+
 Tag a release (`git tag v1.0.0 && git push --tags`) and the project can be installed. `werft validate` checks the file beforehand, in CI as well.
 
 Every field is described in [docs/werft-yml.md](docs/werft-yml.md), two complete examples are in [examples/](examples/). There is a [JSON schema](schema/werft.schema.json) for completion in VS Code, and [ai-skills/werft](ai-skills/werft/SKILL.md) teaches coding agents how to add werft to a project.

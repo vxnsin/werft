@@ -66,6 +66,7 @@ func (w *Werft) Update(name string, o UpdateOptions) error {
 	if err != nil {
 		return err
 	}
+	w.held = a.Warden
 	if a.Kind == "git" {
 		return w.updateGit(a, o, began)
 	}
@@ -134,7 +135,7 @@ func (w *Werft) Update(name string, o UpdateOptions) error {
 	}
 
 	known := a.All()
-	asker := w.asker(o.Answers)
+	asker := w.asker(name, o.Answers)
 	if o.Auto {
 		asker.Interactive = false
 	}
@@ -242,6 +243,7 @@ func (w *Werft) Update(name string, o UpdateOptions) error {
 	a.Version, a.Commit, a.UpdatedAt = version, commit, time.Now().UTC()
 	a.Answers, a.Secrets, a.Migrations = plain, secret, applied
 	a.Channel, a.Runtime = newM.Source.Channel, newM.Runtime.Type
+	a.Warden = w.held
 	if err := w.Store.Save(a); err != nil {
 		return err
 	}

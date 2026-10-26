@@ -112,6 +112,10 @@
             "type": "boolean",
             "description": "The answer goes into secrets.json instead of state.json. Always for password."
           },
+          "warden": {
+            "type": "boolean",
+            "description": "Only for type: port. Take the port from warden when one runs on the server, instead of asking."
+          },
           "optional": {
             "type": "boolean",
             "description": "An empty answer is allowed; empty values are left out of the .env file."

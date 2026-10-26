@@ -23,6 +23,9 @@ type Asker struct {
 	// Reconfigure asks known answers again, with the old one as the suggestion.
 	Reconfigure bool
 	ReadSecret  func() (string, error)
+	// Claim answers a question marked warden: true from the outside, e.g. with
+	// a port from warden. false means: ask as usual.
+	Claim func(q manifest.Question, preferred string) (string, bool)
 }
 
 func New(in io.Reader, out io.Writer, interactive bool) *Asker {
@@ -96,6 +99,16 @@ func (a *Asker) Ask(qs []manifest.Question, known map[string]string) (map[string
 			}
 			result[q.ID] = nv
 			continue
+		}
+		if q.Warden && a.Claim != nil {
+			pref := q.Default
+			if haveOld && old != "" {
+				pref = old
+			}
+			if v, ok := a.Claim(q, pref); ok {
+				result[q.ID] = v
+				continue
+			}
 		}
 		if q.Generate != "" && !(a.Reconfigure && haveOld) {
 			n, _ := manifest.GenerateLen(q.Generate)

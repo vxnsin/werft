@@ -48,6 +48,9 @@ type App struct {
 	After   string `json:"after,omitempty"`   // command run after a pull
 	Restart string `json:"restart,omitempty"` // systemd unit restarted after a pull
 
+	// Warden lists the service names whose ports werft holds at warden.
+	Warden []string `json:"warden,omitempty"`
+
 	// Secrets are kept separately in secrets.json.
 	Secrets map[string]string `json:"-"`
 }

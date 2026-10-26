@@ -72,6 +72,7 @@ questions:
 | `validate` | regular expression |
 | `secret` | the answer goes into `secrets.json` (0600). Always for `password`. |
 | `optional` | an empty answer is allowed. Empty values are left out of the `.env` file, so the app falls back to its own default. |
+| `warden` | only for `port`: when a [warden](https://github.com/vxnsin/warden) runs on the server, werft takes the port it hands out under the app name and does not ask. The app gets `WARDEN_SERVICE` and `WARDEN_PORT` in its `.env` file so it knows the port is already held. Without a warden the question is asked as usual. |
 | `when` | only ask if `id`, `!id`, `id == value` or `id != value` |
 | `env` | a different name in the `.env` file |
 | `generate` | do not ask, generate instead: `random(N)` |

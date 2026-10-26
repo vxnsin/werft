@@ -67,6 +67,7 @@ Rules that matter:
 
 - **Question ids are lower snake case and become env vars in upper case.** `id: db_url` arrives as `DB_URL`. If the app reads a different name, set `env:` instead of renaming the variable in the app.
 - **Read config from the environment.** systemd loads `config.env_file` into the service, compose gets it as `--env-file`. If the app only reads a config file, add a template under `.werft/` and list it in `config.templates`.
+- **Port questions get `warden: true`.** When [warden](https://github.com/vxnsin/warden) runs on the server, werft takes the port from it and skips the question; the app sees `PORT`, `WARDEN_SERVICE` and `WARDEN_PORT`. Without a warden nothing changes. Do not set `WARDEN=0` in `config.env` for that.
 - **Optional settings** (integrations, tokens the app can live without) get `optional: true`. Empty answers are left out of the `.env` file, so the app keeps its own default. Group related optional questions behind a `bool` question and `when:`, so nobody has to press Enter twenty times.
 - **Fixed values that are not questions** go into `config.env`, e.g. `NODE_ENV: production`, `DATA_DIR: "{{ .werft_shared }}/data"`, or `VITE_CLIENT_ID: "{{ .client_id }}"`. They land in the `.env` file and are also set for the build steps, which is what build-time variables (Vite, Next.js `NEXT_PUBLIC_*`) need.
 - **Never put real secrets into werft.yml or the repo.** Passwords are `type: password` questions or `generate`.

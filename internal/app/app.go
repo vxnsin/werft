@@ -36,6 +36,9 @@ type Werft struct {
 	Yes         bool // answer every confirmation with yes
 	Verbose     bool // show the output of steps live
 	Self        string
+
+	held                    []string // ports held at warden for the app being worked on
+	wardenChecked, wardenUp bool
 }
 
 // FromEnv uses the default paths; WERFT_HOME and WERFT_APPS override them.
@@ -76,9 +79,10 @@ func (w *Werft) confirm(question string) bool {
 	return false
 }
 
-func (w *Werft) asker(preset map[string]string) *prompt.Asker {
+func (w *Werft) asker(name string, preset map[string]string) *prompt.Asker {
 	a := prompt.New(w.In, w.UI.Out, w.Interactive)
 	a.Preset = preset
+	a.Claim = w.claimer(name)
 	if term.IsTerminal(int(os.Stdin.Fd())) {
 		a.ReadSecret = func() (string, error) {
 			b, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -143,7 +147,10 @@ func (w *Werft) env(name, version, previous string, m *manifest.Manifest, answer
 // fixedEnv renders config.env, the values that are not questions.
 func (w *Werft) fixedEnv(name, version string, m *manifest.Manifest, answers map[string]string) (map[string]string, error) {
 	data := w.data(name, version, answers)
-	out := make(map[string]string, len(m.Config.Env))
+	out := make(map[string]string, len(m.Config.Env)+2)
+	for k, v := range wardenEnv(name, m, answers, w.held) {
+		out[k] = v
+	}
 	for k, v := range m.Config.Env {
 		rv, err := manifest.Render(v, data)
 		if err != nil {

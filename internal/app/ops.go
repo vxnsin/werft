@@ -36,6 +36,7 @@ func (w *Werft) Rollback(name, to string) error {
 	if a.Kind == "git" {
 		return w.rollbackGit(a, to)
 	}
+	w.held = a.Warden
 	target := to
 	if target == "" {
 		if len(a.Previous) == 0 {
@@ -120,6 +121,7 @@ func (w *Werft) Configure(name string, sets map[string]string) error {
 		return err
 	}
 	answers := a.All()
+	w.held = a.Warden
 	if len(sets) > 0 {
 		for k, v := range sets {
 			q, ok := m.Question(k)
@@ -140,7 +142,7 @@ func (w *Werft) Configure(name string, sets map[string]string) error {
 			w.UI.Printf("%s has no questions.\n", name)
 			return nil
 		}
-		asker := w.asker(nil)
+		asker := w.asker(name, nil)
 		asker.Reconfigure = true
 		got, err := asker.Ask(m.Questions, answers)
 		if err != nil {
@@ -246,6 +248,7 @@ func (w *Werft) Uninstall(name string, keepData bool) error {
 		}
 	}
 
+	w.releaseWarden(a.Warden)
 	st := w.UI.Step("files", w.Layout.AppDir(name))
 	if keepData {
 		os.RemoveAll(w.Layout.Releases(name))

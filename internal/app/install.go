@@ -25,6 +25,7 @@ type InstallOptions struct {
 
 func (w *Werft) Install(o InstallOptions) error {
 	began := time.Now()
+	w.held = nil
 	if err := os.MkdirAll(filepath.Join(w.Store.Home, "apps"), 0o755); err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func (w *Werft) Install(o InstallOptions) error {
 		return err
 	}
 
-	answers, err := w.asker(o.Answers).Ask(m.Questions, nil)
+	answers, err := w.asker(name, o.Answers).Ask(m.Questions, nil)
 	if err != nil {
 		return err
 	}
@@ -164,6 +165,7 @@ func (w *Werft) Install(o InstallOptions) error {
 		Secrets:     secret,
 		Migrations:  applied,
 		Runtime:     m.Runtime.Type,
+		Warden:      w.held,
 		InstalledAt: now,
 		UpdatedAt:   now,
 	}
