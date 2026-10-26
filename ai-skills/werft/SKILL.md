@@ -83,7 +83,7 @@ Rules that matter:
 
 ## 3. Check it
 
-Run `werft validate` in the project root if werft is installed. Otherwise validate against the JSON schema and re-read the reference. Then check by hand:
+Run `werft validate` and `werft audit .` in the project root if werft is installed; fix anything the audit calls critical (downloads piped into a shell, writes outside the project, hidden characters). Otherwise validate against the JSON schema and re-read the reference. Then check by hand:
 
 - every `{{ .x }}` refers to a question id or one of `werft_app`, `werft_version`, `werft_current`, `werft_shared`
 - every path in `install`, `hooks`, `templates.src` and `migrations` exists in the repository

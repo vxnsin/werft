@@ -114,6 +114,10 @@ func (w *Werft) Update(name string, o UpdateOptions) error {
 		}
 	}
 
+	if err := w.gate(w.review(newM, repoReader{repo, commit}), o.Auto, "audit "+name); err != nil {
+		return err
+	}
+
 	// New or changed commands never run without asking.
 	if changes := w.commandChanges(name, a.Version, oldM, newM, repo, commit); len(changes) > 0 {
 		w.UI.Printf("  These commands are new or changed:\n")

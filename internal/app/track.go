@@ -81,6 +81,7 @@ func (w *Werft) Track(o TrackOptions) error {
 	if err := w.Store.Save(a); err != nil {
 		return err
 	}
+	w.auditAfter(o.After)
 	st := w.UI.Step("track", dir)
 	st.OK(branch + " @ " + short(head))
 	w.UI.Note("update with: werft update %s", name)

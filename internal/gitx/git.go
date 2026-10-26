@@ -189,3 +189,16 @@ func untar(r io.Reader, dest string) error {
 		}
 	}
 }
+
+// Files lists the entries of a directory at ref, without reading them.
+func (r *Repo) Files(ref, dir string) ([]string, error) {
+	out, err := r.run("ls-tree", "--name-only", ref+":"+strings.TrimSuffix(dir, "/"))
+	if err != nil || out == "" {
+		return nil, err
+	}
+	names := strings.Split(out, "\n")
+	for i, n := range names {
+		names[i] = strings.TrimPrefix(n, dir+"/")
+	}
+	return names, nil
+}

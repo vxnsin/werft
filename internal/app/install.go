@@ -77,6 +77,10 @@ func (w *Werft) Install(o InstallOptions) error {
 	}
 	st.OK("")
 
+	if err := w.gate(w.review(m, repoReader{repo, commit}), false, "audit "+name); err != nil {
+		return err
+	}
+
 	answers, err := w.asker(o.Answers).Ask(m.Questions, nil)
 	if err != nil {
 		return err

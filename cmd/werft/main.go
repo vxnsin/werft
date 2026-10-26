@@ -41,6 +41,7 @@ const usage = `werft installs your own projects from git and keeps them up to da
 
   werft init [dir]             create a werft.yml
   werft validate [file]        check a werft.yml
+  werft audit [dir|name]       look for the usual tricks in what would run
   werft version
 
   -y, --yes       answer confirmations with yes
@@ -235,6 +236,24 @@ func run(args []string) error {
 			return err
 		}
 		fmt.Printf("Created %s. Check it with: werft validate %s\n", path, path)
+		return nil
+
+	case "audit":
+		pos, err := parse(fs, args, -1)
+		if err != nil {
+			return err
+		}
+		target := "."
+		if len(pos) > 0 {
+			target = pos[0]
+		}
+		critical, err := w.Audit(target)
+		if err != nil {
+			return err
+		}
+		if critical > 0 {
+			return fmt.Errorf("%d critical findings", critical)
+		}
 		return nil
 
 	case "validate", "check":
