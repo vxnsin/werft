@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/vxnsin/werft/main/schema/werft.schema.json",
+  "title": "werft.yml",
+  "description": "How werft installs and updates a project.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name"],
+  "$defs": {
+    "relpath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!\\.\\./)(?!\\.\\.$).+",
+      "description": "Path relative to the project."
+    },
+    "abspath": {
+      "type": "string",
+      "pattern": "^(/|\\{\\{)",
+      "description": "Absolute path on the server."
+    },
+    "step": {
+      "oneOf": [
+        { "type": "string", "description": "Shell command, runs with sh -c in the release directory." },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["run"],
+          "properties": {
+            "run": { "type": "string", "description": "Shell command." },
+            "name": { "type": "string", "description": "Short name for the output." },
+            "dir": { "$ref": "#/$defs/relpath", "description": "Subdirectory the command runs in." }
+          }
+        }
+      ]
+    },
+    "scalar": { "type": ["string", "number", "boolean"] }
+  },
+  "properties": {
+    "schema": { "const": 1, "description": "Version of the format. Always 1." },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "description": "Name of the app on the server, also the name of the service."
+    },
+    "description": { "type": "string" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "enum": ["tags", "branch"],
+          "default": "tags",
+          "description": "tags: only releases like v1.2.3. branch: every new commit on branch."
+        },
+        "branch": { "type": "string", "default": "main" },
+        "verify_signature": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only install tags with a valid signature (git verify-tag)."
+        }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": { "type": "string", "examples": ["debian>=12", "ubuntu>=22.04"] },
+          "description": "One of them has to match (ID and VERSION_ID from /etc/os-release)."
+        },
+        "root": { "type": "boolean", "description": "werft has to run as root." },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string", "examples": ["git", "python3>=3.11"] },
+          "description": "Programs in PATH, optionally with a minimum version from --version."
+        },
+        "apt": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Debian packages. Missing ones are installed after asking."
+        },
+        "ports": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9]+(/(tcp|udp))?$" },
+          "description": "Have to be free at install time."
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "description": "Questions asked on install. New questions are asked on update.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(?!werft_)[a-z][a-z0-9_]*$",
+            "description": "Key for {{ .id }} and, in upper case, for the .env file."
+          },
+          "prompt": { "type": "string", "description": "The question as it is shown." },
+          "help": { "type": "string", "description": "Explanation shown before the question." },
+          "type": {
+            "enum": ["string", "int", "bool", "choice", "password", "path", "port", "url"],
+            "default": "string"
+          },
+          "default": { "$ref": "#/$defs/scalar" },
+          "choices": { "type": "array", "items": { "type": "string" }, "description": "Only for type: choice." },
+          "validate": { "type": "string", "description": "Regular expression the answer has to match." },
+          "secret": {
+            "type": "boolean",
+            "description": "The answer goes into secrets.json instead of state.json. Always for password."
+          },
+          "when": {
+            "type": "string",
+            "description": "Only ask if: id, !id, id == value or id != value.",
+            "examples": ["web_ui", "brain == ollama"]
+          },
+          "env": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "A different name in the .env file." },
+          "generate": {
+            "type": "string",
+            "pattern": "^random\\([0-9]+\\)$",
+            "description": "Do not ask, generate instead, e.g. random(32)."
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "env_file": { "$ref": "#/$defs/abspath", "description": "All answers end up here as KEY=value." },
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["src", "dest"],
+            "properties": {
+              "src": { "$ref": "#/$defs/relpath", "description": "Template in the project, placeholders {{ .id }}." },
+              "dest": { "$ref": "#/$defs/abspath" },
+              "mode": { "type": "string", "pattern": "^0?[0-7]{3}$", "default": "0640" }
+            }
+          }
+        }
+      }
+    },
+    "shared": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relpath" },
+      "description": "Directories that survive updates (they live in /opt/werft/<name>/shared)."
+    },
+    "install": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" },
+      "description": "Build steps. Run on install and on every update in the new release directory."
+    },
+    "update": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/step" }, "description": "Additionally, only on updates." },
+        "backup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "paths": { "type": "array", "items": { "$ref": "#/$defs/abspath" } },
+            "keep": { "type": "integer", "minimum": 1, "default": 5 }
+          }
+        },
+        "migrations": {
+          "$ref": "#/$defs/relpath",
+          "description": "Directory of scripts (001_x.sh, 002_y.sh); each runs exactly once."
+        },
+        "restart": { "enum": ["always", "never"], "default": "always" },
+        "keep_releases": { "type": "integer", "minimum": 2, "default": 3 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["systemd", "compose", "none"], "default": "none" },
+        "systemd": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "exec": { "type": "string", "description": "Start command; relative paths start at the release directory." },
+            "user": { "type": "string", "description": "System user, created when needed." },
+            "unit": { "type": "string", "description": "Name of the unit, default: name." },
+            "restart": {
+              "enum": ["no", "always", "on-failure", "on-abnormal", "on-abort", "on-success", "on-watchdog"],
+              "default": "on-failure"
+            },
+            "restart_sec": { "type": "integer", "minimum": 0, "default": 5 }
+          }
+        },
+        "compose": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": { "$ref": "#/$defs/relpath", "default": "docker-compose.yml" },
+            "pull": { "type": "boolean", "default": false },
+            "build": { "type": "boolean", "default": false }
+          }
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Check after start and update. Exactly one of http or cmd.",
+      "properties": {
+        "http": { "type": "string", "description": "An answer below 400 means healthy." },
+        "cmd": { "type": "string", "description": "Exit code 0 means healthy." },
+        "timeout": { "type": "string", "default": "30s" },
+        "rollback_on_fail": { "type": "boolean", "default": true }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Scripts in the project, run with sh.",
+      "properties": {
+        "pre_install": { "$ref": "#/$defs/relpath" },
+        "post_install": { "$ref": "#/$defs/relpath" },
+        "pre_update": { "$ref": "#/$defs/relpath" },
+        "post_update": { "$ref": "#/$defs/relpath" },
+        "pre_uninstall": { "$ref": "#/$defs/relpath" }
+      }
+    },
+    "auto_update": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "schedule": {
+          "type": "string",
+          "default": "*-*-* 03:00",
+          "description": "systemd OnCalendar, e.g. Mon..Fri 04:00."
+        },
+        "policy": { "enum": ["patch", "minor", "major"], "default": "patch" }
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vxnsin/werft/main/schema/werft.schema.json
+#
+# A wiki with a database through docker compose. The database lives in a named
+# volume; relative bind mounts belong in shared/, otherwise they end up in the
+# release directory and are gone after the next update.
+schema: 1
+name: wiki
+description: Team wiki with Postgres
+
+requires:
+  commands: [docker]
+  ports: [3000/tcp]
+
+questions:
+  - id: domain
+    prompt: Under which address is the wiki reachable?
+    type: url
+    default: http://wiki.local:3000
+  - id: db_password
+    type: password
+    generate: random(32)
+    env: POSTGRES_PASSWORD
+
+config:
+  env_file: /etc/wiki/.env
+
+shared: [uploads]
+
+update:
+  backup:
+    paths: ["{{ .werft_shared }}/uploads"]
+  restart: always
+
+runtime:
+  type: compose
+  compose:
+    file: docker-compose.yml
+    pull: true
+
+health:
+  http: http://localhost:3000/healthz
+  timeout: 2m

@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Source of social-preview.png (1280x640). Render again with:
+     chrome --headless=new --hide-scrollbars --window-size=1280,640 --screenshot=social-preview.png social-preview.html -->
+<html lang="en">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root {
+    --ground: #121619;
+    --grid: rgba(236, 231, 221, 0.045);
+    --paper: #ECE7DD;
+    --gray: #8B9096;
+    --red-lead: #E2502B;
+    --green: #8FBF7F;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
+      var(--ground);
+    color: var(--paper);
+    font-family: "IBM Plex Sans", sans-serif;
+    display: grid;
+    grid-template-columns: 520px 1fr;
+    gap: 64px;
+    align-items: center;
+    padding: 0 80px;
+    position: relative;
+  }
+  .left img { width: 440px; display: block; margin-left: -4px; }
+  .left p { margin-top: 36px; font-size: 30px; line-height: 1.32; }
+  .terminal {
+    background: #0B0E10;
+    border: 1px solid #262B30;
+    border-radius: 10px;
+    padding: 26px 30px 28px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 19px;
+    line-height: 1.75;
+    color: var(--gray);
+    white-space: pre;
+  }
+  .terminal .cmd, .terminal .w { color: var(--paper); }
+  .terminal .p { color: var(--red-lead); }
+  .terminal .ok { color: var(--green); }
+  .waterline { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--red-lead); }
+</style>
+<body>
+  <div class="left">
+    <img src="wordmark-dark.svg" alt="werft">
+    <p>Install your own projects from git<br>and keep them up to date.</p>
+  </div>
+  <div class="terminal"><span class="p">$</span> <span class="cmd">werft update notepad</span>
+
+  <span class="w">v1.4.2 → v1.5.0</span>    7 commits
+
+  backup     /etc/notepad          <span class="ok">ok</span>
+  release    releases/v1.5.0       <span class="ok">ok</span>
+  migration  003_tags.sh           <span class="ok">ok</span>
+  restart    notepad.service       <span class="ok">ok</span>
+  health     :8080/health          <span class="ok">200</span>
+
+  <span class="w">done</span> in 12s</div>
+  <div class="waterline"></div>
+</body>
+</html>

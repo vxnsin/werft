@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vxnsin/werft/main/schema/werft.schema.json
+#
+# A Python web app as a systemd service with its own user.
+schema: 1
+name: notepad
+description: Notes in the browser, a small Flask service
+
+source:
+  channel: tags
+
+requires:
+  os: [debian>=12, ubuntu>=22.04]
+  root: true
+  commands: [python3>=3.11]
+  apt: [python3-venv]
+  ports: [8080/tcp]
+
+questions:
+  - id: port
+    prompt: Which port should notepad listen on?
+    type: port
+    default: 8080
+  - id: title
+    prompt: Title at the top of the page
+    default: Notepad
+  - id: login
+    prompt: Require a password?
+    type: bool
+    default: true
+  - id: password
+    prompt: Password
+    type: password
+    when: login
+  - id: secret_key
+    type: password
+    generate: random(48)
+    env: FLASK_SECRET_KEY
+
+config:
+  env_file: /etc/notepad/.env
+
+# The database lives in data/ and survives updates.
+shared: [data]
+
+install:
+  - python3 -m venv .venv
+  - name: Packages
+    run: .venv/bin/pip install --quiet -r requirements.txt
+
+update:
+  backup:
+    paths: ["{{ .werft_shared }}/data", /etc/notepad]
+    keep: 10
+  migrations: .werft/migrations
+
+runtime:
+  type: systemd
+  systemd:
+    exec: .venv/bin/gunicorn --bind 0.0.0.0:{{ .port }} notepad:app
+    user: notepad
+    restart: on-failure
+
+health:
+  http: http://localhost:{{ .port }}/health
+  timeout: 30s
+
+auto_update:
+  enabled: true
+  schedule: "Mon..Fri 04:00"
+  policy: patch
