@@ -168,9 +168,6 @@ func (w *Werft) Install(o InstallOptions) error {
 	}
 	done = true
 
-	if err := w.setupAuto(name, m); err != nil {
-		w.UI.Warn("automatic updates not set up: %v", err)
-	}
 	w.UI.Done("installed", since(began))
 	return nil
 }

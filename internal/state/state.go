@@ -38,6 +38,16 @@ type App struct {
 	InstalledAt time.Time         `json:"installed_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
 
+	// Auto is the schedule for automatic updates, set on the server with werft auto.
+	Auto *Auto `json:"auto,omitempty"`
+
+	// Kind is "git" for a plain repository added with werft track; such an app
+	// has no werft.yml and is updated in place with git pull.
+	Kind    string `json:"kind,omitempty"`
+	Dir     string `json:"dir,omitempty"`     // working tree of a tracked repository
+	After   string `json:"after,omitempty"`   // command run after a pull
+	Restart string `json:"restart,omitempty"` // systemd unit restarted after a pull
+
 	// Secrets are kept separately in secrets.json.
 	Secrets map[string]string `json:"-"`
 }
@@ -63,6 +73,12 @@ func (a *App) PushPrevious(keep int) {
 	if len(a.Previous) > keep {
 		a.Previous = a.Previous[:keep]
 	}
+}
+
+// Auto is when and how far an app is updated on its own.
+type Auto struct {
+	Schedule string `json:"schedule"` // systemd OnCalendar
+	Policy   string `json:"policy"`   // patch, minor or major
 }
 
 type Store struct{ Home string }

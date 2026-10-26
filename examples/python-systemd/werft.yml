@@ -63,8 +63,3 @@ runtime:
 health:
   http: http://localhost:{{ .port }}/health
   timeout: 30s
-
-auto_update:
-  enabled: true
-  schedule: "Mon..Fri 04:00"
-  policy: patch

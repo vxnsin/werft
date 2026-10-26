@@ -205,15 +205,6 @@ hooks:
 
 Scripts run with `sh` in the release directory and with the same environment as the steps. `pre_update` runs before anything happens to the running version, so it is the place for something like a database dump.
 
-## auto_update
+## Automatic updates
 
-```yaml
-auto_update:
-  enabled: true
-  schedule: "Mon..Fri 04:00"
-  policy: patch
-```
-
-werft sets up a systemd timer `werft-auto-<name>.timer` that runs `werft update <name> --auto`. `schedule` is an `OnCalendar` expression. `policy` limits how far it jumps on its own: `patch` only 1.4.x, `minor` 1.x, `major` everything.
-
-An automatic update does not run if commands changed (build steps, hooks, `exec`). The journal then says it has to be done by hand, and `werft update <name>` shows the changes first.
+They are not part of this file. Whether an app updates on its own, and when, is decided on the server with `werft auto`. See the README.

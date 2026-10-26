@@ -15,6 +15,7 @@ type Runner struct {
 	Env     []string  // KEY=value, on top of the own environment
 	Log     io.Writer // full output (log file), may be nil
 	Verbose io.Writer // show output live, may be nil
+	As      string    // run as this user (through runuser), empty means the current one
 }
 
 // Error carries the end of the output so you can see what went wrong.
@@ -66,6 +67,10 @@ func (r *Runner) exec(what, dir string, name string, args ...string) error {
 		writers = append(writers, r.Verbose)
 	}
 	out := io.MultiWriter(writers...)
+	if r.As != "" {
+		args = append([]string{"-u", r.As, "--", name}, args...)
+		name = "runuser"
+	}
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), r.Env...)

@@ -78,7 +78,7 @@ Rules that matter:
 - **Python projects**: `python3 -m venv .venv` and `.venv/bin/pip install -r requirements.txt`; exec through `.venv/bin/...`.
 - **Docker projects**: `runtime: compose`, `pull: true` for registry images, `build: true` if the compose file builds. No install steps are needed unless something has to be generated first.
 - **Database changes between versions** go into `update.migrations` as numbered shell scripts (`001_add_column.sh`). They run once, on the first update that brings them, never on a fresh install.
-- **Automatic updates** only when the user wants them: `auto_update: { enabled: true, schedule: "*-*-* 04:00", policy: patch }`.
+- **Automatic updates** are not part of werft.yml. They are set per server with `werft auto` (which apps, what time, how far releases may jump). Do not add anything for them to the project.
 - Keep `channel: tags` (the default) unless the project has no releases and the user wants every commit deployed.
 
 ## 3. Check it

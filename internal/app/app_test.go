@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vxnsin/werft/internal/gitx"
 	"github.com/vxnsin/werft/internal/release"
 	"github.com/vxnsin/werft/internal/state"
 	"github.com/vxnsin/werft/internal/ui"
@@ -226,6 +227,19 @@ func expectFile(t *testing.T, path, want string) {
 
 func load(t *testing.T, w *Werft) *state.App {
 	t.Helper()
+	name := "demo"
+	if !w.Store.Exists(name) {
+		name = "plain"
+	}
+	a, err := w.Store.Load(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
+}
+
+func loadOld(t *testing.T, w *Werft) *state.App {
+	t.Helper()
 	a, err := w.Store.Load("demo")
 	if err != nil {
 		t.Fatal(err)
@@ -240,4 +254,91 @@ func slashAbs(p string) string {
 		return filepath.ToSlash(strings.TrimPrefix(p, filepath.VolumeName(p)))
 	}
 	return p
+}
+
+// A plain clone without werft.yml: track, update with an after command,
+// automatic reset when that command fails, manual rollback.
+func TestTracked(t *testing.T) {
+	for _, tool := range []string{"git", "sh"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(tool + " is missing")
+		}
+	}
+	base := t.TempDir()
+	src := filepath.Join(base, "src")
+	git := gitRepo(t, src)
+	write(t, src, "app.txt", "one")
+	git("add", "-A")
+	git("commit", "-q", "-m", "one")
+
+	work := filepath.Join(base, "work")
+	clone := exec.Command("git", "clone", "-q", src, work)
+	if out, err := clone.CombinedOutput(); err != nil {
+		t.Fatalf("clone: %s", out)
+	}
+	w, out := testWerft(base)
+	err := w.Track(TrackOptions{Dir: work, Name: "plain", After: "cat app.txt > built.txt"})
+	if err != nil {
+		t.Fatalf("track: %v\n%s", err, out)
+	}
+	if a := load(t, w); a.Kind != "git" || a.Branch != "main" {
+		t.Fatalf("state: %+v", a)
+	}
+
+	write(t, src, "app.txt", "two")
+	git("commit", "-qam", "two")
+	if err := w.Update("plain", UpdateOptions{}); err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	expectFile(t, filepath.Join(work, "built.txt"), "two")
+	two := load(t, w).Commit
+
+	// the after command fails: werft resets to the commit before
+	a := load(t, w)
+	a.After = "grep -q three app.txt && exit 1; cat app.txt > built.txt"
+	if err := w.Store.Save(a); err != nil {
+		t.Fatal(err)
+	}
+	write(t, src, "app.txt", "three")
+	git("commit", "-qam", "three")
+	err = w.Update("plain", UpdateOptions{})
+	if err == nil || !strings.Contains(err.Error(), "running again") {
+		t.Fatalf("expected a reset, got: %v\n%s", err, out)
+	}
+	if head, _ := gitx.OpenTree(work).Head(); head != two {
+		t.Errorf("work tree should be back on %s, is on %s", short(two), short(head))
+	}
+
+	a = load(t, w)
+	a.After = "cat app.txt > built.txt"
+	w.Store.Save(a)
+	if err := w.Update("plain", UpdateOptions{}); err != nil {
+		t.Fatalf("update three: %v\n%s", err, out)
+	}
+	expectFile(t, filepath.Join(work, "built.txt"), "three")
+	if err := w.Rollback("plain", ""); err != nil {
+		t.Fatalf("rollback: %v\n%s", err, out)
+	}
+	expectFile(t, filepath.Join(work, "built.txt"), "two")
+	if err := w.Untrack("plain"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(work, "app.txt")); err != nil {
+		t.Error("untrack must leave the clone alone")
+	}
+}
+
+func TestParseSchedule(t *testing.T) {
+	cases := map[string]string{"02:00": "*-*-* 02:00", "4:30": "*-*-* 04:30", "Mon..Fri 04:00": "Mon..Fri 04:00"}
+	for in, want := range cases {
+		got, err := ParseSchedule(in)
+		if err != nil || got != want {
+			t.Errorf("%q: %q %v", in, got, err)
+		}
+	}
+	for _, bad := range []string{"", "25:00"} {
+		if _, err := ParseSchedule(bad); err == nil {
+			t.Errorf("%q should fail", bad)
+		}
+	}
 }

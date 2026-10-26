@@ -33,6 +33,9 @@ func (w *Werft) Rollback(name, to string) error {
 	if err != nil {
 		return err
 	}
+	if a.Kind == "git" {
+		return w.rollbackGit(a, to)
+	}
 	target := to
 	if target == "" {
 		if len(a.Previous) == 0 {
@@ -195,6 +198,9 @@ func (w *Werft) Uninstall(name string, keepData bool) error {
 	if err != nil {
 		return err
 	}
+	if a.Kind == "git" {
+		return w.Untrack(name)
+	}
 	what := "service, releases, configuration, data in shared/ and backups"
 	if keepData {
 		what = "service and releases; data, configuration and backups stay"
@@ -274,6 +280,13 @@ func (w *Werft) List() error {
 }
 
 func (w *Werft) status(a *state.App) string {
+	if a.Kind == "git" {
+		if a.Restart == "" {
+			return "-"
+		}
+		runtime, c := gitService(a)
+		return runtime.Status(c)
+	}
 	m, err := w.releaseManifest(a.Name, a.Version)
 	if err != nil {
 		return "release missing"
@@ -310,17 +323,25 @@ func (w *Werft) Status(name string) error {
 		}
 		row("previous", strings.Join(vs, ", "))
 	}
-	row("directory", w.Layout.Current(name))
+	dir := w.Layout.Current(name)
+	if a.Kind == "git" {
+		dir = a.Dir
+		if a.After != "" {
+			row("after pull", a.After)
+		}
+	}
+	row("directory", dir)
 	if entries, _ := os.ReadDir(w.Store.BackupDir(name)); len(entries) > 0 {
 		row("backups", fmt.Sprintf("%d in %s", len(entries), w.Store.BackupDir(name)))
 	}
-	if m, err := w.releaseManifest(name, a.Version); err == nil {
-		auto := "off"
-		if m.AutoUpdate.Enabled {
-			auto = m.AutoUpdate.Schedule + " (" + m.AutoUpdate.Policy + ")"
+	auto := "off"
+	if a.Auto != nil {
+		auto = a.Auto.Schedule
+		if a.Channel == "tags" {
+			auto += " (" + a.Auto.Policy + ")"
 		}
-		row("auto-update", auto)
 	}
+	row("auto-update", auto)
 	w.UI.Printf("\n")
 	return nil
 }
@@ -331,16 +352,11 @@ func (w *Werft) Service(name, action string) error {
 	if err != nil {
 		return err
 	}
-	m, err := w.releaseManifest(name, a.Version)
+	runtime, c, label, err := w.serviceOf(a)
 	if err != nil {
 		return err
 	}
-	runtime, err := rt.For(m.Runtime.Type)
-	if err != nil {
-		return err
-	}
-	c := w.rtContext(name, m, w.data(name, a.Version, a.All()))
-	st := w.UI.Step(action, runtimeLabel(name, m))
+	st := w.UI.Step(action, label)
 	switch action {
 	case "start":
 		err = runtime.Start(c)
@@ -361,15 +377,32 @@ func (w *Werft) Logs(name string, follow bool, lines int) error {
 	if err != nil {
 		return err
 	}
-	m, err := w.releaseManifest(name, a.Version)
+	runtime, c, _, err := w.serviceOf(a)
 	if err != nil {
 		return err
+	}
+	return runtime.Logs(c, follow, lines)
+}
+
+// serviceOf is the runtime of an app, for installed and tracked ones alike.
+func (w *Werft) serviceOf(a *state.App) (rt.Runtime, rt.Context, string, error) {
+	if a.Kind == "git" {
+		if a.Restart == "" {
+			return nil, rt.Context{}, "", errNoService
+		}
+		runtime, c := gitService(a)
+		return runtime, c, a.Restart + ".service", nil
+	}
+	m, err := w.releaseManifest(a.Name, a.Version)
+	if err != nil {
+		return nil, rt.Context{}, "", err
 	}
 	runtime, err := rt.For(m.Runtime.Type)
 	if err != nil {
-		return err
+		return nil, rt.Context{}, "", err
 	}
-	return runtime.Logs(w.rtContext(name, m, w.data(name, a.Version, a.All())), follow, lines)
+	c := w.rtContext(a.Name, m, w.data(a.Name, a.Version, a.All()))
+	return runtime, c, runtimeLabel(a.Name, m), nil
 }
 
 // Backups lists the backups of an app.

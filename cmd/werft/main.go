@@ -31,6 +31,14 @@ const usage = `werft installs your own projects from git and keeps them up to da
   werft backups <name>
   werft uninstall <name> [--keep-data]
 
+  werft auto                   choose which apps update on their own, and when
+  werft auto set <name...>|all --at 02:00 [--policy patch|minor|major]
+  werft auto off <name...>|all
+  werft auto list
+
+  werft track <dir> [--name n] [--after "npm ci && npm run build"] [--restart unit]
+  werft untrack <name>
+
   werft init [dir]             create a werft.yml
   werft validate [file]        check a werft.yml
   werft version
@@ -199,6 +207,19 @@ func run(args []string) error {
 			return err
 		}
 		return w.Uninstall(pos[0], *keep)
+
+	case "auto":
+		return runAuto(w, fs, args)
+
+	case "track":
+		return runTrack(w, fs, args)
+
+	case "untrack":
+		pos, err := parse(fs, args, 1)
+		if err != nil {
+			return err
+		}
+		return w.Untrack(pos[0])
 
 	case "init":
 		pos, err := parse(fs, args, -1)

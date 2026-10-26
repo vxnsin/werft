@@ -239,19 +239,6 @@
         "post_update": { "$ref": "#/$defs/relpath" },
         "pre_uninstall": { "$ref": "#/$defs/relpath" }
       }
-    },
-    "auto_update": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": { "type": "boolean", "default": false },
-        "schedule": {
-          "type": "string",
-          "default": "*-*-* 03:00",
-          "description": "systemd OnCalendar, e.g. Mon..Fri 04:00."
-        },
-        "policy": { "enum": ["patch", "minor", "major"], "default": "patch" }
-      }
     }
   }
 }

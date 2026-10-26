@@ -207,15 +207,6 @@ func (m *Manifest) Validate() []Problem {
 			checkRel(add, "hooks."+h.name, h.file)
 		}
 	}
-
-	switch m.AutoUpdate.Policy {
-	case "patch", "minor", "major":
-	default:
-		add("auto_update.policy", "%q: use patch, minor or major", m.AutoUpdate.Policy)
-	}
-	if m.AutoUpdate.Enabled && m.Source.Channel == "branch" && m.AutoUpdate.Policy != "major" {
-		add("auto_update.policy", "channel: branch has no versions, use policy: major")
-	}
 	return ps
 }
 
@@ -265,3 +256,6 @@ func ParseMode(s string) (uint32, error) {
 	}
 	return uint32(n), nil
 }
+
+// ValidName reports whether s can be the name of an app.
+func ValidName(s string) bool { return nameRe.MatchString(s) }

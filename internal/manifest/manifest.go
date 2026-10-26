@@ -29,7 +29,6 @@ type Manifest struct {
 	Runtime     Runtime    `yaml:"runtime"`
 	Health      *Health    `yaml:"health"`
 	Hooks       Hooks      `yaml:"hooks"`
-	AutoUpdate  AutoUpdate `yaml:"auto_update"`
 }
 
 type Source struct {
@@ -166,12 +165,6 @@ type Hooks struct {
 	PreUninstall string `yaml:"pre_uninstall"`
 }
 
-type AutoUpdate struct {
-	Enabled  bool   `yaml:"enabled"`
-	Schedule string `yaml:"schedule"`
-	Policy   string `yaml:"policy"`
-}
-
 // Load reads a werft.yml from disk.
 func Load(path string) (*Manifest, error) {
 	data, err := os.ReadFile(path)
@@ -231,12 +224,6 @@ func (m *Manifest) applyDefaults() {
 	}
 	if m.Health != nil && m.Health.Timeout == "" {
 		m.Health.Timeout = "30s"
-	}
-	if m.AutoUpdate.Policy == "" {
-		m.AutoUpdate.Policy = "patch"
-	}
-	if m.AutoUpdate.Schedule == "" {
-		m.AutoUpdate.Schedule = "*-*-* 03:00"
 	}
 }
 

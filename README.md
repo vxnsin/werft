@@ -118,6 +118,9 @@ werft start | stop | restart <name>
 werft logs <name> [-f]
 werft backups <name>
 werft uninstall <name> [--keep-data]
+werft auto [set <name...> --at 02:00 | off <name...> | list]
+werft track <dir> [--after cmd] [--restart unit]
+werft untrack <name>
 werft init
 werft validate [file]
 ```
@@ -134,14 +137,37 @@ werft validate [file]
 6. `current` now points to the new release, the service restarts, the health check runs.
 7. If any of that fails, everything goes back to the previous version.
 
-This also works on its own: `auto_update` in `werft.yml` sets up a systemd timer that checks on a schedule and only updates within the allowed version jumps, for example only from 1.4.2 to 1.4.3.
+## Updating on a schedule
 
-```yaml
-auto_update:
-  enabled: true
-  schedule: "Mon..Fri 04:00"
-  policy: patch
+Which apps update on their own, and when, is decided on the server, not in the project:
+
+```console
+$ sudo werft auto
+   1) notepad              off
+   2) wiki                 off
+   3) dotfiles             off
+
+  Which apps? Numbers like 1,3 or all: all
+  When? A time like 02:00, a systemd calendar like Mon..Fri 04:00, or off [02:00]:
+  How far may releases jump on their own? patch, minor or major [patch]:
+
+  auto       notepad                      *-*-* 02:00 (patch)
+  auto       wiki                         *-*-* 02:00 (patch)
+  auto       dotfiles                     *-*-* 02:00
 ```
+
+Without questions: `werft auto set notepad wiki --at 02:00`, `werft auto off all`, `werft auto list`. Every app gets its own systemd timer. The policy limits how far a release may jump on its own: `patch` goes from 1.4.2 to 1.4.3 but never to 1.5.0. An automatic update stops when commands in `werft.yml` changed and leaves a note in the journal instead.
+
+## Plain git clones
+
+Not every repository needs a `werft.yml`. A clone that only has to stay current can be tracked as well:
+
+```sh
+sudo werft track /home/luis/dotfiles
+sudo werft track /opt/bot --after "npm ci" --restart bot
+```
+
+werft then fetches, fast-forwards the branch, runs the `--after` command and restarts the unit. `update`, `rollback`, `status` and `auto` work the same as for everything else. Local changes in the clone stop an update, and if the after command fails, the clone goes back to the commit before.
 
 ## Where things live
 

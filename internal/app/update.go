@@ -66,6 +66,9 @@ func (w *Werft) Update(name string, o UpdateOptions) error {
 	if err != nil {
 		return err
 	}
+	if a.Kind == "git" {
+		return w.updateGit(a, o, began)
+	}
 	oldM, err := w.releaseManifest(name, a.Version)
 	if err != nil {
 		w.UI.Warn("cannot read werft.yml of %s: %v", a.Version, err)
@@ -245,9 +248,6 @@ func (w *Werft) Update(name string, o UpdateOptions) error {
 	if err := backup.Prune(w.Store.BackupDir(name), newM.Update.Backup.Keep); err != nil {
 		w.UI.Warn("old backups not removed: %v", err)
 	}
-	if err := w.setupAuto(name, newM); err != nil {
-		w.UI.Warn("automatic updates: %v", err)
-	}
 	w.UI.Done("done", since(began))
 	return nil
 }
@@ -268,8 +268,8 @@ func (w *Werft) target(repo *gitx.Repo, a *state.App, oldM *manifest.Manifest, o
 			return "", "", "", err
 		}
 		policy := "major"
-		if o.Auto && oldM != nil {
-			policy = oldM.AutoUpdate.Policy
+		if o.Auto && a.Auto != nil {
+			policy = a.Auto.Policy
 		}
 		if o.Policy != "" {
 			policy = o.Policy
