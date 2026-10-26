@@ -115,6 +115,10 @@ func (a *Asker) Ask(qs []manifest.Question, known map[string]string) (map[string
 			def = old
 		}
 		if !a.Interactive {
+			if def == "" && q.Optional {
+				result[q.ID] = ""
+				continue
+			}
 			if def == "" {
 				return nil, fmt.Errorf("question %q needs an answer: --answers file.yml or WERFT_ANSWER_%s",
 					q.ID, strings.ToUpper(q.ID))
@@ -159,6 +163,9 @@ func (a *Asker) askOne(q manifest.Question, def string, keepSecret bool) (string
 			return "", err
 		}
 		if strings.TrimSpace(line) == "" {
+			if def == "" && q.Optional {
+				return "", nil
+			}
 			if def == "" {
 				fmt.Fprintln(a.Out, "    please enter something")
 				continue
@@ -178,6 +185,8 @@ func hint(q manifest.Question, def string, keepSecret bool) string {
 	switch {
 	case keepSecret:
 		return " [unchanged]"
+	case q.Optional && def == "":
+		return " (optional)"
 	case q.IsSecret() || def == "":
 		return ""
 	case q.Type == "bool" && def == "true":

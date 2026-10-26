@@ -14,6 +14,9 @@ import (
 func CheckAnswer(q Question, v string) (string, error) {
 	v = strings.TrimSpace(v)
 	if v == "" {
+		if q.Optional {
+			return "", nil
+		}
 		return "", fmt.Errorf("must not be empty")
 	}
 	switch q.Type {

@@ -55,6 +55,7 @@ type Question struct {
 	Choices  []string `yaml:"choices"`
 	Validate string   `yaml:"validate"`
 	Secret   bool     `yaml:"secret"`
+	Optional bool     `yaml:"optional"`
 	When     string   `yaml:"when"`
 	Env      string   `yaml:"env"`
 	Generate string   `yaml:"generate"`
@@ -74,8 +75,9 @@ func (q Question) IsSecret() bool {
 }
 
 type Config struct {
-	EnvFile   string     `yaml:"env_file"`
-	Templates []Template `yaml:"templates"`
+	EnvFile   string            `yaml:"env_file"`
+	Env       map[string]string `yaml:"env"`
+	Templates []Template        `yaml:"templates"`
 }
 
 type Template struct {

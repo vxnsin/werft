@@ -67,9 +67,14 @@ Rules that matter:
 
 - **Question ids are lower snake case and become env vars in upper case.** `id: db_url` arrives as `DB_URL`. If the app reads a different name, set `env:` instead of renaming the variable in the app.
 - **Read config from the environment.** systemd loads `config.env_file` into the service, compose gets it as `--env-file`. If the app only reads a config file, add a template under `.werft/` and list it in `config.templates`.
+- **Optional settings** (integrations, tokens the app can live without) get `optional: true`. Empty answers are left out of the `.env` file, so the app keeps its own default. Group related optional questions behind a `bool` question and `when:`, so nobody has to press Enter twenty times.
+- **Fixed values that are not questions** go into `config.env`, e.g. `NODE_ENV: production`, `DATA_DIR: "{{ .werft_shared }}/data"`, or `VITE_CLIENT_ID: "{{ .client_id }}"`. They land in the `.env` file and are also set for the build steps, which is what build-time variables (Vite, Next.js `NEXT_PUBLIC_*`) need.
 - **Never put real secrets into werft.yml or the repo.** Passwords are `type: password` questions or `generate`.
 - **Everything the app writes at runtime goes to `shared`**, otherwise it is gone after the next update. For compose, relative bind mounts must point into a `shared` directory or be named volumes.
 - **Node projects**: `npm ci` then `npm run build`; `exec: node dist/server.js` or the `start` script as `npm run start`. Static sites built to `dist/` can use `runtime: none` and serve the directory with an existing web server; say so in the description.
+- **Next.js**: also put `.next/cache` into `shared` (the service user cannot write into the root-owned release directory, and image optimization caches there). Run it with `exec: node_modules/.bin/next start`; the port comes from `PORT` in the `.env` file.
+- **Native Node modules** (better-sqlite3, sharp) usually ship prebuilt binaries; add `build-essential` and `python3` to `requires.apt` anyway so `npm ci` can fall back to compiling.
+- **If the project already has an install script** (`scripts/setup-*.sh`), keep it. werft replaces the app part (clone, build, service, env file); things outside the app like a reverse proxy, DNS or tunnels stay in that script or in the README.
 - **Python projects**: `python3 -m venv .venv` and `.venv/bin/pip install -r requirements.txt`; exec through `.venv/bin/...`.
 - **Docker projects**: `runtime: compose`, `pull: true` for registry images, `build: true` if the compose file builds. No install steps are needed unless something has to be generated first.
 - **Database changes between versions** go into `update.migrations` as numbered shell scripts (`001_add_column.sh`). They run once, on the first update that brings them, never on a fresh install.

@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,15 +16,23 @@ import (
 
 const envHeader = "# Written by werft. Values changed by hand are lost on the next update;\n# change them with: werft config %s --set id=value\n"
 
-// EnvLines returns the lines of the .env file in the order of the questions.
-func EnvLines(m *manifest.Manifest, answers map[string]string) []string {
+// EnvLines returns the lines of the .env file: answers in the order of the
+// questions, then the fixed values from config.env. Empty answers are left
+// out so the app falls back to its own default.
+func EnvLines(m *manifest.Manifest, answers, fixed map[string]string) []string {
 	var lines []string
 	for _, q := range m.Questions {
-		v, ok := answers[q.ID]
-		if !ok {
-			continue
+		if v := answers[q.ID]; v != "" {
+			lines = append(lines, q.EnvName()+"="+Quote(v))
 		}
-		lines = append(lines, q.EnvName()+"="+Quote(v))
+	}
+	keys := make([]string, 0, len(fixed))
+	for k := range fixed {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		lines = append(lines, k+"="+Quote(fixed[k]))
 	}
 	return lines
 }
@@ -46,8 +55,8 @@ func Quote(v string) string {
 }
 
 // WriteEnv writes the .env file with 0640; group (the service user) may read it.
-func WriteEnv(path, app string, m *manifest.Manifest, answers map[string]string, group string) error {
-	content := fmt.Sprintf(envHeader, app) + strings.Join(EnvLines(m, answers), "\n") + "\n"
+func WriteEnv(path, app string, m *manifest.Manifest, answers, fixed map[string]string, group string) error {
+	content := fmt.Sprintf(envHeader, app) + strings.Join(EnvLines(m, answers, fixed), "\n") + "\n"
 	return writeFile(path, []byte(content), 0o640, group)
 }
 

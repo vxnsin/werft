@@ -66,3 +66,24 @@ func TestAskWithoutTerminal(t *testing.T) {
 		t.Errorf("a missing answer must be reported: %v", err)
 	}
 }
+
+func TestAskOptional(t *testing.T) {
+	qs := []manifest.Question{
+		{ID: "token", Prompt: "Token", Type: "password", Optional: true},
+		{ID: "url", Prompt: "URL", Type: "url", Optional: true},
+	}
+	var out strings.Builder
+	got, err := New(strings.NewReader("\n\n"), &out, true).Ask(qs, nil)
+	if err != nil || got["token"] != "" || got["url"] != "" {
+		t.Fatalf("optional questions may stay empty: %v %v", got, err)
+	}
+	if !strings.Contains(out.String(), "(optional)") {
+		t.Errorf("prompt should say optional: %q", out.String())
+	}
+	if _, err := New(strings.NewReader(""), &out, false).Ask(qs, nil); err != nil {
+		t.Errorf("without a terminal optional questions stay empty: %v", err)
+	}
+	if _, err := New(strings.NewReader("no-url\n"), &out, true).Ask(qs[1:], nil); err == nil {
+		t.Error("a given answer is still checked")
+	}
+}

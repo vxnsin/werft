@@ -27,10 +27,12 @@ func TestQuote(t *testing.T) {
 
 func TestEnvLines(t *testing.T) {
 	m := &manifest.Manifest{Questions: []manifest.Question{
-		{ID: "sip_server"}, {ID: "pw", Env: "SIP_PASSWORD"}, {ID: "missing"},
+		{ID: "sip_server"}, {ID: "pw", Env: "SIP_PASSWORD"}, {ID: "missing"}, {ID: "empty"},
 	}}
-	got := strings.Join(EnvLines(m, map[string]string{"sip_server": "a", "pw": "b c"}), "\n")
-	if got != "SIP_SERVER=a\nSIP_PASSWORD=\"b c\"" {
+	answers := map[string]string{"sip_server": "a", "pw": "b c", "empty": ""}
+	fixed := map[string]string{"NODE_ENV": "production", "A_FIRST": "1"}
+	got := strings.Join(EnvLines(m, answers, fixed), "\n")
+	if got != "SIP_SERVER=a\nSIP_PASSWORD=\"b c\"\nA_FIRST=1\nNODE_ENV=production" {
 		t.Errorf("%q", got)
 	}
 }

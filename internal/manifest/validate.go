@@ -125,6 +125,11 @@ func (m *Manifest) Validate() []Problem {
 	if m.Config.EnvFile != "" && !path.IsAbs(m.Config.EnvFile) {
 		add("config.env_file", "must be an absolute path")
 	}
+	for k := range m.Config.Env {
+		if !envRe.MatchString(k) {
+			add("config.env."+k, "uppercase letters, digits and _")
+		}
+	}
 	for i, t := range m.Config.Templates {
 		f := fmt.Sprintf("config.templates[%d]", i)
 		checkRel(add, f+".src", t.Src)

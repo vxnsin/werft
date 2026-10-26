@@ -129,11 +129,29 @@ func (w *Werft) env(name, version, previous string, m *manifest.Manifest, answer
 		"WERFT_SHARED_DIR=" + w.Layout.Shared(name),
 	}
 	for _, q := range m.Questions {
-		if v, ok := answers[q.ID]; ok {
+		if v := answers[q.ID]; v != "" {
 			env = append(env, q.EnvName()+"="+v)
 		}
 	}
+	fixed, _ := w.fixedEnv(name, version, m, answers)
+	for k, v := range fixed {
+		env = append(env, k+"="+v)
+	}
 	return env
+}
+
+// fixedEnv renders config.env, the values that are not questions.
+func (w *Werft) fixedEnv(name, version string, m *manifest.Manifest, answers map[string]string) (map[string]string, error) {
+	data := w.data(name, version, answers)
+	out := make(map[string]string, len(m.Config.Env))
+	for k, v := range m.Config.Env {
+		rv, err := manifest.Render(v, data)
+		if err != nil {
+			return nil, fmt.Errorf("config.env.%s: %w", k, err)
+		}
+		out[k] = rv
+	}
+	return out, nil
 }
 
 // logFile creates a log file for this run.
@@ -210,7 +228,11 @@ func (w *Werft) writeConfig(name, version string, m *manifest.Manifest, answers 
 		}
 	}
 	if m.Config.EnvFile != "" {
-		if err := cfgfiles.WriteEnv(m.Config.EnvFile, name, m, answers, group); err != nil {
+		fixed, err := w.fixedEnv(name, version, m, answers)
+		if err != nil {
+			return err
+		}
+		if err := cfgfiles.WriteEnv(m.Config.EnvFile, name, m, answers, fixed, group); err != nil {
 			return err
 		}
 	}

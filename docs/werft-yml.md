@@ -71,6 +71,7 @@ questions:
 | `choices` | for `choice`; the answer may also be the number |
 | `validate` | regular expression |
 | `secret` | the answer goes into `secrets.json` (0600). Always for `password`. |
+| `optional` | an empty answer is allowed. Empty values are left out of the `.env` file, so the app falls back to its own default. |
 | `when` | only ask if `id`, `!id`, `id == value` or `id != value` |
 | `env` | a different name in the `.env` file |
 | `generate` | do not ask, generate instead: `random(N)` |
@@ -95,11 +96,16 @@ Or the environment: `WERFT_ANSWER_SIP_SERVER=192.168.1.10`.
 ```yaml
 config:
   env_file: /etc/phone/.env
+  env:
+    NODE_ENV: production
+    DATA_DIR: "{{ .werft_shared }}/data"
   templates:
     - src: .werft/config.toml.tmpl
       dest: /etc/phone/config.toml
       mode: "0640"
 ```
+
+`env` holds fixed values that are not questions. They may use the same `{{ }}` placeholders as templates. They go into the `.env` file and are also set for the build steps, which matters for tools that read variables at build time, such as Vite or Next.js.
 
 The `.env` file holds every answer as `KEY=value`. Both systemd (`EnvironmentFile`) and docker compose (`--env-file`) understand the format. Templates are Go templates: `{{ .sip_server }}`, `{{ if eq .brain "ollama" }}…{{ end }}`.
 

@@ -112,6 +112,10 @@
             "type": "boolean",
             "description": "The answer goes into secrets.json instead of state.json. Always for password."
           },
+          "optional": {
+            "type": "boolean",
+            "description": "An empty answer is allowed; empty values are left out of the .env file."
+          },
           "when": {
             "type": "string",
             "description": "Only ask if: id, !id, id == value or id != value.",
@@ -131,6 +135,12 @@
       "additionalProperties": false,
       "properties": {
         "env_file": { "$ref": "#/$defs/abspath", "description": "All answers end up here as KEY=value." },
+        "env": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Z_][A-Z0-9_]*$" },
+          "additionalProperties": { "type": "string" },
+          "description": "Fixed values that are not questions. Written to the .env file and set for the build steps."
+        },
         "templates": {
           "type": "array",
           "items": {

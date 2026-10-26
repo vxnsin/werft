@@ -50,7 +50,7 @@ func TestLifecycle(t *testing.T) {
 	expectFile(t, filepath.Join(w.Layout.Current("demo"), "built.txt"), "hello\n")
 	expectFile(t, filepath.Join(base, "etc", "greeting.txt"), "Greeting: hello from v1.0.0")
 	env, _ := os.ReadFile(filepath.Join(base, "etc", "demo.env"))
-	if !strings.Contains(string(env), "GREETING=hello\nPW=secret\n") {
+	if !strings.Contains(string(env), "GREETING=hello\nPW=secret\nRELEASE=v1.0.0\n") {
 		t.Errorf(".env: %q", env)
 	}
 	a := load(t, w)
@@ -142,6 +142,8 @@ questions:
 #FRAGEN
 config:
   env_file: ETC/demo.env
+  env:
+    RELEASE: "{{ .werft_version }}"
   templates:
     - src: .werft/greeting.tmpl
       dest: ETC/greeting.txt
